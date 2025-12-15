@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rainbow 99</title>
+    <style>
+        :root {
+            /* Rainbow Colors */
+            --p1-color: #FF5252; /* Red */
+            --p2-color: #FF9800; /* Orange */
+            --p3-color: #FFEB3B; /* Yellow */
+            --p4-color: #4CAF50; /* Green */
+            --p5-color: #2196F3; /* Blue */
+            --p6-color: #3F51B5; /* Indigo */
+            --p7-color: #9C27B0; /* Violet */
+            
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --text-white: #ffffff;
+            --glass: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Segoe UI', 'Roboto', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(circle at 50% 50%, #2a2a4e 0%, #1a1a2e 100%);
+            color: var(--text-white);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* --- STRICT FONT SIZING --- */
+        /* Base text for everything */
+        body, p, div, span, input, select, label, li {
+            font-size: 16px; 
+            line-height: 1.5;
+        }
+
+        /* Large text for Headings and Buttons */
+        h1, h2, h3, button, .card-val, .score-display {
+            font-size: 21px; 
+            font-weight: bold;
+        }
+
+        /* --- LAYOUT UTILS --- */
+        .hidden { display: none !important; }
+        .flex-center { display: flex; justify-content: center; align-items: center; }
+        .flex-col { display: flex; flex-direction: column; }
+        .full-screen { width: 100%; height: 100vh; position: absolute; top: 0; left: 0; z-index: 100; }
+
+        /* --- SCREENS --- */
+        #start-screen, #game-over-screen, #round-result-screen {
+            background: rgba(0,0,0,0.9);
+            z-index: 50;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 10px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- COMPONENTS --- */
+        
+        /* Buttons */
+        button {
+            background: linear-gradient(45deg, #ff00cc, #3333ff);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 0, 204, 0.6);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button.secondary {
+            background: linear-gradient(45deg, #444, #666);
+        }
+
+        /* Card Design */
+        .card {
+            width: 90px;
+            height: 130px;
+            background: white;
+            border-radius: 10px;
+            color: #333;
+            display: inline-flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: 5px;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+            border: 2px solid #ccc;
+            user-select: none;
+        }
+
+        .card:hover {
+            transform: translateY(-10px) scale(1.05);
+            z-index: 10;
+            box-shadow: 0 0 15px rgba(255,255,255,0.5);
+        }
+
+        .card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #ddd;
+        }
+
+        .card-top, .card-bottom {
+            position: absolute;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .card-top { top: 5px; left: 5px; }
+        .card-bottom { bottom: 5px; right: 5px; transform: rotate(180deg); }
+
+        .card-center {
+            font-size: 21px;
+            font-weight: 900;
+            text-align: center;
+        }
+
+        /* Card Types Colors */
+        .card[data-type="pos"] { border-color: #4CAF50; color: #2E7D32; }
+        .card[data-type="neg"] { border-color: #F44336; color: #C62828; }
+        .card[data-type="effect"] { border-color: #2196F3; color: #1565C0; background: #E3F2FD; }
+
+        /* --- GAME BOARD --- */
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: var(--glass);
+            border-radius: 15px;
+            margin-bottom: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        .main-score-box {
+            text-align: center;
+            padding: 10px 30px;
+            border-radius: 20px;
+            background: rgba(0,0,0,0.5);
+            border: 2px solid white;
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+
+        .current-number {
+            font-size: 21px;
+            color: #fff;
+            text-shadow: 0 0 10px #fff;
+        }
+
+        .direction-indicator {
+            font-size: 21px;
+        }
+
+        /* Player Grid */
+        .players-area {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .player-badge {
+            background: rgba(0,0,0,0.4);
+            border-radius: 10px;
+            padding: 8px;
+            min-width: 100px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .player-badge.active {
+            transform: scale(1.1);
+            background: rgba(255,255,255,0.1);
+            box-shadow: 0 0 15px currentColor;
+            z-index: 5;
+        }
+
+        .player-badge.eliminated {
+            opacity: 0.3;
+            filter: grayscale(100%);
+        }
+
+        .p-name { font-weight: bold; margin-bottom: 5px; display: block;}
+        .p-money { color: #4CAF50; display: block; }
+        .p-cards { font-size: 16px; color: #aaa; display: block; }
+
+        /* Assign colors to players */
+        .p0 { border-color: var(--p1-color); color: var(--p1-color); }
+        .p1 { border-color: var(--p2-color); color: var(--p2-color); }
+        .p2 { border-color: var(--p3-color); color: var(--p3-color); }
+        .p3 { border-color: var(--p4-color); color: var(--p4-color); }
+        .p4 { border-color: var(--p5-color); color: var(--p5-color); }
+        .p5 { border-color: var(--p6-color); color: var(--p6-color); }
+        .p6 { border-color: var(--p7-color); color: var(--p7-color); }
+
+        /* Hand Area */
+        .hand-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px 10px 20px 10px;
+            background: rgba(22, 33, 62, 0.95);
+            display: flex;
+            overflow-x: auto;
+            justify-content: center;
+            align-items: flex-end;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+            z-index: 40;
+            min-height: 160px;
+        }
+
+        .hand-scroll-container {
+            display: flex;
+            padding-bottom: 10px;
+        }
+
+        .game-log {
+            background: rgba(0,0,0,0.3);
+            height: 80px;
+            overflow-y: auto;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 170px; /* space for hand */
+            font-size: 16px;
+            color: #ccc;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .log-entry { margin-bottom: 4px; }
+        .log-highlight { color: #fff; font-weight: bold; }
+
+        /* Results Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: rgba(255,255,255,0.05);
+        }
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+        th { background: rgba(255,255,255,0.1); color: var(--p3-color); }
+
+        /* Animations */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .last-card-anim {
+            animation: pulse 0.5s ease-out;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .players-area {
+                gap: 5px;
+            }
+            .player-badge {
+                min-width: 80px;
+                padding: 5px;
+                font-size: 16px;
+            }
+            .card {
+                width: 70px;
+                height: 100px;
+            }
+            .card-center { font-size: 16px; }
+            .hand-area { justify-content: flex-start; } /* Allow scroll */
+            h1 { font-size: 21px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- START SCREEN -->
+    <div id="start-screen" class="full-screen flex-center flex-col">
+        <h1 style="color:var(--p3-color); margin-bottom:20px; font-size: 21px; text-transform: uppercase; letter-spacing: 2px;">Rainbow 99 🌈</h1>
+        <p style="margin-bottom: 30px; max-width: 600px;">
+            歡迎來到彩虹99！每人手持7張牌，目標是不要讓數字超過99。<br>
+            輸家將根據隨機倍率扣除金錢，並轉移給害他輸的人。<br>
+            贏得 $2000 或輸光 $1000 即結束遊戲。
+        </p>
+        <div style="display:flex; flex-wrap:wrap; justify-content:center;">
+            <button onclick="game.init(1)">我 vs 電腦 (1人)</button>
+            <button onclick="game.init(2)">我 vs 朋友 vs 電腦 (2人)</button>
+        </div>
+    </div>
+
+    <!-- GAME UI -->
+    <div id="game-ui" class="container hidden">
+        <!-- Header Info -->
+        <div class="game-header">
+            <div>
+                <div style="font-size:16px; opacity:0.7;">獎金池規則</div>
+                <div style="font-size:16px;">隨機 x1, x2, x3</div>
+            </div>
+            <div class="main-score-box">
+                <div style="font-size:16px; margin-bottom:5px;">目前數字</div>
+                <div id="current-score" class="current-number">7</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:16px; opacity:0.7;">方向</div>
+                <div id="direction-arrow" class="direction-indicator">↻ 順時針</div>
+            </div>
+        </div>
+
+        <!-- Players Grid -->
+        <div id="players-container" class="players-area">
+            <!-- Rendered by JS -->
+        </div>
+
+        <!-- Game Log -->
+        <div id="game-log" class="game-log">
+            <div class="log-entry">遊戲開始！起始數字為 7。</div>
+        </div>
+
+        <!-- Player Hand -->
+        <div class="hand-area">
+            <div id="player-hand" class="hand-scroll-container">
+                <!-- Cards rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ROUND RESULT SCREEN -->
+    <div id="round-result-screen" class="full-screen flex-center flex-col hidden">
+        <h2 style="color:var(--p1-color); margin-bottom:15px;">本局結束！</h2>
+        <div id="result-details" style="margin-bottom:20px; background:rgba(255,255,255,0.1); padding:20px; border-radius:10px;">
+            <!-- Details -->
+        </div>
+        <button onclick="game.nextRound()">下一局</button>
+    </div>
+
+    <!-- GAME OVER SCREEN -->
+    <div id="game-over-screen" class="full-screen flex-center flex-col hidden">
+        <h1 style="color:var(--p3-color); margin-bottom:20px;">遊戲結束 (Game Over)</h1>
+        <p id="winner-announce" style="margin-bottom:20px; font-size:21px;"></p>
+        <div id="final-stats" style="width:90%; max-width:600px; margin-bottom:20px;"></div>
+        <button onclick="location.reload()">重玩</button>
+    </div>
+
+    <script>
+        /**
+         * Rainbow 99 Game Logic
+         */
+
+        // Configurations
+        const CONFIG = {
+            START_MONEY: 1000,
+            WIN_MONEY: 2000,
+            LOSE_MONEY: 0,
+            START_SCORE: 7,
+            MAX_SCORE: 99,
+            HAND_SIZE: 7,
+            TOTAL_CARDS: 144
+        };
+
+        const CARD_TYPES = {
+            POS: 'pos',
+            NEG: 'neg',
+            EFFECT: 'effect'
+        };
+
+        const EFFECTS = {
+            REVERSE: 'Reverse',
+            ADD13: '+13',
+            SKIP: 'Skip Me',
+            SET99: '99',
+            SET0: '0',
+            REMOVE: 'Remove Card' // Treated as a "Pass/Discard" that doesn't change score
+        };
+
+        const PLAYER_COLORS = [
+            { name: "Red", color: "#FF5252" },
+            { name: "Orange", color: "#FF9800" },
+            { name: "Yellow", color: "#FFEB3B" },
+            { name: "Green", color: "#4CAF50" },
+            { name: "Blue", color: "#2196F3" },
+            { name: "Indigo", color: "#3F51B5" },
+            { name: "Violet", color: "#9C27B0" }
+        ];
+
+        // --- Class Definitions ---
+
+        class Card {
+            constructor(label, value, type, effect = null) {
+                this.label = label;
+                this.value = value;
+                this.type = type; // pos, neg, effect
+                this.effect = effect;
+                this.id = Math.random().toString(36).substr(2, 9);
+            }
+        }
+
+        class Player {
+            constructor(index, isHuman) {
+                this.index = index;
+                this.name = isHuman ? `玩家 ${index + 1} (我)` : (index === 1 && game.mode === 2 ? `玩家 2 (朋友)` : `電腦 ${index + 1}`);
+                this.isHuman = isHuman;
+                if (game.mode === 2 && index === 1) this.name = "玩家 2 (朋友)";
+                
+                this.money = CONFIG.START_MONEY;
+                this.hand = [];
+                this.isEliminated = false;
+                this.colorData = PLAYER_COLORS[index];
+            }
+        }
+
+        // --- Game Engine ---
+
+        const game = {
+            mode: 1, // 1 or 2 players
+            players: [],
+            deck: [],
+            discardPile: [],
+            currentScore: 7,
+            direction: 1, // 1: CW, -1: CCW
+            currentPlayerIndex: 0,
+            lastPlayerIndex: null, // Tracks who played before to award money
+            isProcessing: false,
+
+            init: function(selectedMode) {
+                this.mode = selectedMode;
+                this.players = [];
+                
+                // Initialize 7 Players
+                for (let i = 0; i < 7; i++) {
+                    let isHuman = false;
+                    if (selectedMode === 1 && i === 0) isHuman = true;
+                    if (selectedMode === 2 && (i === 0 || i === 1)) isHuman = true;
+                    this.players.push(new Player(i, isHuman));
+                }
+
+                document.getElementById('start-screen').classList.add('hidden');
+                document.getElementById('game-ui').classList.remove('hidden');
+                this.startRound();
+            },
+
+            generateDeck: function() {
+                this.deck = [];
+                // +1 to +9 (6 of each)
+                for (let i = 1; i <= 9; i++) {
+                    for (let j = 0; j < 6; j++) this.deck.push(new Card(`+${i}`, i, CARD_TYPES.POS));
+                }
+                // -1 to -9 (6 of each)
+                for (let i = 1; i <= 9; i++) {
+                    for (let j = 0; j < 6; j++) this.deck.push(new Card(`-${i}`, -i, CARD_TYPES.NEG));
+                }
+                // Effects (6 of each)
+                for (let j = 0; j < 6; j++) {
+                    this.deck.push(new Card('⟲', 0, CARD_TYPES.EFFECT, EFFECTS.REVERSE)); // Reverse
+                    this.deck.push(new Card('+13', 13, CARD_TYPES.POS, EFFECTS.ADD13)); // +13
+                    this.deck.push(new Card('Skip', 0, CARD_TYPES.EFFECT, EFFECTS.SKIP)); // Skip Me (Pass)
+                    this.deck.push(new Card('99', 99, CARD_TYPES.EFFECT, EFFECTS.SET99)); // Set to 99
+                    this.deck.push(new Card('0', 0, CARD_TYPES.EFFECT, EFFECTS.SET0)); // Set to 0
+                    this.deck.push(new Card('❌', 0, CARD_TYPES.EFFECT, EFFECTS.REMOVE)); // Remove Card (Discard/Pass)
+                }
+                
+                // Shuffle
+                for (let i = this.deck.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]];
+                }
+            },
+
+            drawCard: function(player) {
+                if (this.deck.length === 0) {
+                    if (this.discardPile.length === 0) {
+                        this.log("牌堆已空，重新洗牌失敗（無牌）。");
+                        return; 
+                    }
+                    this.deck = this.discardPile;
+                    this.discardPile = [];
+                    // Shuffle deck again
+                    this.deck.sort(() => Math.random() - 0.5);
+                    this.log("牌堆已空，重新洗棄牌堆。");
+                }
+                const card = this.deck.pop();
+                player.hand.push(card);
+            },
+
+            startRound: function() {
+                this.currentScore = CONFIG.START_SCORE;
+                this.direction = 1;
+                this.currentPlayerIndex = 0; // Usually starts with P1 or random. Let's start P1.
+                this.lastPlayerIndex = null;
+                this.generateDeck();
+                this.discardPile = [];
+                this.isProcessing = false;
+
+                // Deal Cards
+                this.players.forEach(p => {
+                    p.hand = [];
+                    for(let i=0; i<CONFIG.HAND_SIZE; i++) this.drawCard(p);
+                });
+
+                this.updateUI();
+                this.log(`===== 新局開始 =====`);
+                this.nextTurn();
+            },
+
+            nextTurn: function() {
+                // Determine next valid player
+                // (Already handled by advancePlayer logic, just UI check here)
+                
+                this.updateUI();
+                const player = this.players[this.currentPlayerIndex];
+
+                if (!player.isHuman) {
+                    this.isProcessing = true;
+                    setTimeout(() => this.aiPlay(player), 1000);
+                } else {
+                    this.isProcessing = false;
+                    this.log(`等待 ${player.name} 出牌...`);
+                }
+            },
+
+            calculateNewScore: function(card) {
+                let tempScore = this.currentScore;
+                
+                if (card.effect === EFFECTS.SET99) return 99;
+                if (card.effect === EFFECTS.SET0) return 0;
+                if (card.effect === EFFECTS.SKIP) return tempScore;
+                if (card.effect === EFFECTS.REMOVE) return tempScore;
+                if (card.effect === EFFECTS.REVERSE) return tempScore;
+
+                // Numbers
+                tempScore += card.value;
+                return tempScore;
+            },
+
+            // Human plays a card by clicking
+            playCardIndex: function(cardIndex) {
+                if (this.isProcessing) return;
+                const player = this.players[this.currentPlayerIndex];
+                if (!player.isHuman) return;
+
+                const card = player.hand[cardIndex];
+                const predictedScore = this.calculateNewScore(card);
+
+                // Lose Condition Check immediately
+                if (predictedScore > CONFIG.MAX_SCORE) {
+                    // Play the card and lose
+                    this.executeMove(player, cardIndex, predictedScore, true);
+                } else {
+                    this.executeMove(player, cardIndex, predictedScore, false);
+                }
+            },
+
+            aiPlay: function(player) {
+                // AI Logic
+                // 1. Try to play cards that don't bust.
+                // 2. Logic: High score -> Play 0, 99, or Negatives. Low score -> Play Positives.
+                
+                let safeMoves = [];
+                let bustMoves = [];
+
+                player.hand.forEach((card, index) => {
+                    let score = this.calculateNewScore(card);
+                    if (score <= CONFIG.MAX_SCORE) {
+                        safeMoves.push({index, card, score});
+                    } else {
+                        bustMoves.push({index, card, score});
+                    }
+                });
+
+                if (safeMoves.length > 0) {
+                    // Pick best safe move
+                    // Simple heuristic: If score is low (<80), play highest possible +card to pressure.
+                    // If score is high (>80), play small +, or effects.
+                    // For randomness, just pick random safe move for now to keep it "Colorful" and casual.
+                    const move = safeMoves[Math.floor(Math.random() * safeMoves.length)];
+                    this.executeMove(player, move.index, move.score, false);
+                } else {
+                    // Must bust
+                    const move = bustMoves[0]; // Just play the first one
+                    this.executeMove(player, move.index, move.score, true);
+                }
+            },
+
+            executeMove: function(player, cardIndex, newScore, isBust) {
+                const card = player.hand[cardIndex];
+                
+                // Remove card from hand
+                player.hand.splice(cardIndex, 1);
+                this.discardPile.push(card);
+                
+                // Log
+                let logText = `<span style="color:${player.colorData.color}">${player.name}</span> 出牌 [${card.label}]`;
+                
+                if (card.effect === EFFECTS.REVERSE) {
+                    this.direction *= -1;
+                    logText += " ⟲ 迴轉!";
+                } else if (card.effect === EFFECTS.SKIP) {
+                    logText += " 跳過回合";
+                } else if (card.effect === EFFECTS.REMOVE) {
+                    logText += " 移除卡片 (Pass)";
+                } else if (card.effect === EFFECTS.SET99) {
+                    logText += " 設定為 99";
+                } else if (card.effect === EFFECTS.SET0) {
+                    logText += " 歸零";
+                } else {
+                    logText += ` -> 數字變為 ${newScore}`;
+                }
+                
+                this.log(logText);
+
+                // Draw new card to maintain hand size
+                this.drawCard(player);
+
+                if (isBust) {
+                    this.handleRoundLoss(player, newScore);
+                } else {
+                    this.currentScore = newScore;
+                    this.lastPlayerIndex = this.currentPlayerIndex;
+                    this.advancePlayer();
+                    this.nextTurn();
+                }
+            },
+
+            advancePlayer: function() {
+                let nextIdx = this.currentPlayerIndex + this.direction;
+                if (nextIdx >= 7) nextIdx = 0;
+                if (nextIdx < 0) nextIdx = 6;
+                this.currentPlayerIndex = nextIdx;
+            },
+
+            handleRoundLoss: function(loser, finalScore) {
+                // Calculate Penalty
+                const multiplier = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3
+                const penalty = finalScore * multiplier;
+
+                // Identify Winner (The person who played before the loser)
+                // If lastPlayerIndex is null (loser busted on turn 1), nobody gets money (or bank gets it).
+                // Usually turn 1 bust is impossible unless starting cards are all bad, but 7 is start score.
+                let winner = null;
+                if (this.lastPlayerIndex !== null) {
+                    winner = this.players[this.lastPlayerIndex];
+                }
+
+                // Update Money
+                loser.money -= penalty;
+                let winnerText = "無人";
+                if (winner) {
+                    winner.money += penalty;
+                    winnerText = winner.name;
+                }
+
+                // Show Round Result
+                const ui = document.getElementById('round-result-screen');
+                const details = document.getElementById('result-details');
+                ui.classList.remove('hidden');
+
+                let html = `
+                    <h3 style="color:${loser.colorData.color}">輸家: ${loser.name}</h3>
+                    <p>爆掉數字: ${finalScore}</p>
+                    <p>隨機倍率: x${multiplier}</p>
+                    <p style="font-size:21px; color:#ff5252; margin:10px 0;">總罰款: $${penalty}</p>
+                    <hr style="border:1px solid #555; margin:10px 0;">
+                    <p>獲利者: <span style="color:${winner ? winner.colorData.color : '#fff'}">${winnerText}</span></p>
+                `;
+                details.innerHTML = html;
+
+                // Check Game Over
+                if (this.checkGameOver()) {
+                    // Change button to show game over instead of next round
+                    ui.classList.add('hidden'); // Hide round screen to show game over
+                }
+            },
+
+            checkGameOver: function() {
+                let isOver = false;
+                let reason = "";
+
+                // Condition 1: Someone > 2000
+                const richPlayer = this.players.find(p => p.money > CONFIG.WIN_MONEY);
+                if (richPlayer) {
+                    isOver = true;
+                    reason = `${richPlayer.name} 贏得了超過 $2000！`;
+                }
+
+                // Condition 2: Someone <= 0
+                const bankruptPlayer = this.players.find(p => p.money <= CONFIG.LOSE_MONEY);
+                if (bankruptPlayer) {
+                    isOver = true;
+                    reason = `${bankruptPlayer.name} 破產了！`;
+                }
+
+                if (isOver) {
+                    this.showGameOver(reason);
+                    return true;
+                }
+                return false;
+            },
+
+            showGameOver: function(reason) {
+                const screen = document.getElementById('game-over-screen');
+                screen.classList.remove('hidden');
+                document.getElementById('round-result-screen').classList.add('hidden');
+                document.getElementById('winner-announce').innerText = reason;
+
+                let tableHtml = `<table><thead><tr><th>名次</th><th>玩家</th><th>最終金額</th></tr></thead><tbody>`;
+                
+                // Sort by money
+                const sortedPlayers = [...this.players].sort((a,b) => b.money - a.money);
+                
+                sortedPlayers.forEach((p, idx) => {
+                    tableHtml += `
+                        <tr>
+                            <td>${idx + 1}</td>
+                            <td style="color:${p.colorData.color}">${p.name}</td>
+                            <td>$${p.money}</td>
+                        </tr>
+                    `;
+                });
+                tableHtml += `</tbody></table>`;
+                document.getElementById('final-stats').innerHTML = tableHtml;
+            },
+
+            nextRound: function() {
+                document.getElementById('round-result-screen').classList.add('hidden');
+                this.startRound();
+            },
+
+            log: function(msg) {
+                const logEl = document.getElementById('game-log');
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.innerHTML = msg;
+                logEl.appendChild(entry);
+                logEl.scrollTop = logEl.scrollHeight;
+            },
+
+            updateUI: function() {
+                // Update Score
+                const scoreEl = document.getElementById('current-score');
+                scoreEl.innerText = this.currentScore;
+                
+                // Color code score for tension
+                if(this.currentScore < 50) scoreEl.style.color = "#fff";
+                else if(this.currentScore < 80) scoreEl.style.color = "#FFEB3B";
+                else scoreEl.style.color = "#FF5252";
+
+                // Update Direction
+                const arrow = document.getElementById('direction-arrow');
+                arrow.innerText = this.direction === 1 ? "↻ 順時針" : "↺ 逆時針";
+
+                // Update Players Grid
+                const pContainer = document.getElementById('players-container');
+                pContainer.innerHTML = '';
+                this.players.forEach((p, i) => {
+                    const div = document.createElement('div');
+                    div.className = `player-badge p${i} ${i === this.currentPlayerIndex ? 'active' : ''}`;
+                    div.innerHTML = `
+                        <span class="p-name">${p.name}</span>
+                        <span class="p-money">$${p.money}</span>
+                        <span class="p-cards">🎴 ${p.hand.length}</span>
+                    `;
+                    pContainer.appendChild(div);
+                });
+
+                // Update Hand (Only for current human player)
+                const handContainer = document.getElementById('player-hand');
+                handContainer.innerHTML = '';
+                
+                const activePlayer = this.players[this.currentPlayerIndex];
+                
+                // Only show hand if it's a Human turn.
+                // In "Me vs Friend", we need to handle hiding cards, but for simplicity in a shared screen/local play,
+                // we'll show the cards if it is THAT human's turn.
+                // If it's AI turn, show nothing or placeholder.
+                
+                if (activePlayer.isHuman) {
+                    activePlayer.hand.forEach((card, idx) => {
+                        const cardDiv = document.createElement('div');
+                        cardDiv.className = `card`;
+                        cardDiv.setAttribute('data-type', card.type);
+                        cardDiv.onclick = () => this.playCardIndex(idx);
+                        
+                        // Disable if busting? No, rule says you can play and lose.
+                        // But maybe visually hint dangerous cards? 
+                        // Let's keep it clean.
+
+                        cardDiv.innerHTML = `
+                            <div class="card-top">${card.label}</div>
+                            <div class="card-center">${card.label}</div>
+                            <div class="card-bottom">${card.label}</div>
+                        `;
+                        handContainer.appendChild(cardDiv);
+                    });
+                } else {
+                    handContainer.innerHTML = `<div style="color:#aaa; padding:20px;">${activePlayer.name} 思考中...</div>`;
+                }
+            }
+        };
+
+        // Initialize on Load (wait for user interaction via Start Screen)
+    </script>
+</body>
+</html>
