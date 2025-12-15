@@ -147,7 +147,7 @@
         .card-bottom { bottom: 5px; right: 5px; transform: rotate(180deg); }
 
         .card-center {
-            font-size: 21px !important; /* Force 21px as requested */
+            font-size: 34px !important; /* Update to 34px */
             font-weight: 900;
             text-align: center;
         }
@@ -250,6 +250,19 @@
             pointer-events: none;
         }
 
+        .direction-text {
+            position: absolute;
+            bottom: -30px; /* Move text below the ring/card */
+            font-size: 16px;
+            color: #FFEB3B;
+            font-weight: bold;
+            text-shadow: 0 0 5px black;
+            z-index: 30;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
         .played-card-spot {
             position: absolute;
             top: 50%;
@@ -259,11 +272,6 @@
             /* New Design: Card in exact center, Score slightly above or overlay */
         }
         
-        /* Adjusted Center: Score on top, Card below score slightly offset */
-        .center-stage {
-            /* We will put the played card in the middle, and score floats above it */
-        }
-
         .active-card-display {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -365,7 +373,7 @@
             .player-avatar { width: 70px; height: 70px; }
             .avatar-name { font-size: 14px; }
             .card { width: 65px; height: 90px; }
-            .card-center { font-size: 18px !important; }
+            .card-center { font-size: 34px !important; }
             .hand-area { justify-content: flex-start; }
             .game-header { flex-direction: column; align-items: stretch; gap: 5px; }
             .deck-info { text-align: left; }
@@ -380,9 +388,12 @@
     <!-- START SCREEN -->
     <div id="start-screen" class="full-screen flex-center flex-col">
         <h1 style="color:var(--p3-color); margin-bottom:20px; font-size: 32px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(255,255,255,0.5);">Rainbow 99 🌈</h1>
-        <p style="margin-bottom: 30px; max-width: 600px; line-height: 1.8; text-align: left; padding: 0 20px;">
-            歡迎來到《彩虹99》，每局7玩家，每人7張牌，目標是不要讓數字超過99，誰人100誰人輸，輸家將根據隨機倍率扣除金錢，並轉移給害你輸的人。離人贏得 $2000 或輸光 $1000 即結束遊戲。
+        
+        <p style="margin-bottom: 30px; max-width: 600px; line-height: 1.8; text-align: center; padding: 0 20px;">
+            歡迎來到《彩虹99》<br>
+            每局7玩家，每人7張牌，目標是不要讓數字超過99，誰人讓數字到100誰人輸，輸家將根據隨機倍率扣除金錢，並轉移給害你輸的人，離人贏得 $2000 或輸光 $1000 即結束遊戲。
         </p>
+        
         <div style="display:flex; flex-wrap:wrap; justify-content:center;">
             <button onclick="game.init(1)">我 vs 電腦 (1人)</button>
             <button onclick="game.init(2)">我 vs 朋友 vs 電腦 (2人)</button>
@@ -390,7 +401,7 @@
         
         <div class="start-footer">
             Design by Derek<br>
-            V1.1
+            V1.2
         </div>
     </div>
 
@@ -422,6 +433,8 @@
                     <div id="active-card-container" class="active-card-display"></div>
                     <!-- Direction Indicator ring -->
                     <div id="direction-ring" class="direction-arrow"></div>
+                    <!-- Direction Text -->
+                    <div id="direction-text" class="direction-text">↻ 順時針</div>
                 </div>
                 <!-- Players will be injected here absolutely -->
             </div>
@@ -454,7 +467,7 @@
 
     <script>
         /**
-         * Rainbow 99 Game Logic V1.1
+         * Rainbow 99 Game Logic V1.2
          */
 
         const CONFIG = {
@@ -504,9 +517,15 @@
         class Player {
             constructor(index, isHuman) {
                 this.index = index;
-                this.name = isHuman ? `我 (${PLAYER_COLORS[index].name})` : `電腦 ${index+1}`;
-                if (game.mode === 2 && index === 1) this.name = "朋友 (Orange)";
+                this.name = `電腦 ${index+1}`;
                 this.isHuman = isHuman;
+                
+                // Specific Naming
+                if (isHuman) {
+                    if (index === 0) this.name = `我 (${PLAYER_COLORS[index].name})`;
+                    else if (index === 2) this.name = `朋友 (${PLAYER_COLORS[index].name})`;
+                }
+
                 this.money = CONFIG.START_MONEY;
                 this.hand = [];
                 this.colorData = PLAYER_COLORS[index];
@@ -528,10 +547,14 @@
                 this.mode = selectedMode;
                 this.players = [];
                 
+                // P0=Human, P2=Friend(if mode2), others AI
                 for (let i = 0; i < 7; i++) {
                     let isHuman = false;
                     if (selectedMode === 1 && i === 0) isHuman = true;
-                    if (selectedMode === 2 && (i === 0 || i === 1)) isHuman = true;
+                    if (selectedMode === 2) {
+                        if (i === 0) isHuman = true; // Me
+                        if (i === 2) isHuman = true; // Friend (3rd player, Index 2)
+                    }
                     this.players.push(new Player(i, isHuman));
                 }
 
@@ -543,29 +566,21 @@
 
             generateDeck: function() {
                 this.deck = [];
-                // 1. Positive Cards (+1 to +9), 7 of each. 9 * 7 = 63
+                // 1. Positive Cards (+1 to +9), 7 of each
                 for (let i = 1; i <= 9; i++) {
                     for (let j = 0; j < 7; j++) this.deck.push(new Card(`+${i}`, i, CARD_TYPES.POS));
                 }
-                // 2. Negative Cards (-1 to -9), 5 of each. 9 * 5 = 45
+                // 2. Negative Cards (-1 to -9), 5 of each
                 for (let i = 1; i <= 9; i++) {
                     for (let j = 0; j < 5; j++) this.deck.push(new Card(`-${i}`, -i, CARD_TYPES.NEG));
                 }
-                // 3. Effect Cards, 6 of each. 6 * 6 = 36
-                // Reverse
+                // 3. Effect Cards, 6 of each
                 for(let j=0; j<6; j++) this.deck.push(new Card('⟲', 0, CARD_TYPES.EFFECT, EFFECTS.REVERSE));
-                // +13
                 for(let j=0; j<6; j++) this.deck.push(new Card('+13', 13, CARD_TYPES.POS, EFFECTS.ADD13));
-                // Skip
                 for(let j=0; j<6; j++) this.deck.push(new Card('Skip', 0, CARD_TYPES.EFFECT, EFFECTS.SKIP));
-                // 99
                 for(let j=0; j<6; j++) this.deck.push(new Card('99', 99, CARD_TYPES.EFFECT, EFFECTS.SET99));
-                // 0
                 for(let j=0; j<6; j++) this.deck.push(new Card('0', 0, CARD_TYPES.EFFECT, EFFECTS.SET0));
-                // Remove
                 for(let j=0; j<6; j++) this.deck.push(new Card('Rem', 0, CARD_TYPES.EFFECT, EFFECTS.REMOVE));
-
-                // Total check: 63 + 45 + 36 = 144
                 
                 // Shuffle
                 this.deck.sort(() => Math.random() - 0.5);
@@ -578,7 +593,7 @@
 
             drawCard: function(player) {
                 if (this.deck.length === 0) {
-                    if (this.discardPile.length === 0) return; // No cards left anywhere
+                    if (this.discardPile.length === 0) return;
                     this.deck = this.discardPile;
                     this.discardPile = [];
                     this.deck.sort(() => Math.random() - 0.5);
@@ -613,7 +628,7 @@
             // Render players in a circle
             renderCircularTable: function() {
                 const container = document.getElementById('table-circle');
-                // Keep center elements, remove old players
+                // Keep center elements
                 const centerChildren = Array.from(container.children).filter(c => c.classList.contains('center-stage'));
                 container.innerHTML = '';
                 centerChildren.forEach(c => container.appendChild(c));
@@ -622,17 +637,10 @@
                 const total = 7;
                 
                 this.players.forEach((p, i) => {
-                    // Angle: start from bottom (90deg) or top (-90deg)?
-                    // Let's place Player 0 at bottom center (90deg in CSS terms usually 0 is right).
-                    // 0 deg = right, 90 deg = bottom, 180 = left, 270/-90 = top
-                    // We want P0 at bottom. So angle = 90.
-                    // Subsequent players distributed.
-                    
+                    // Start from 90deg (bottom)
                     const angleDeg = 90 + (i * (360 / total));
                     const angleRad = angleDeg * (Math.PI / 180);
                     
-                    // x = r * cos(theta), y = r * sin(theta)
-                    // CSS left/top are from top-left corner. Center is 50%, 50%.
                     const x = 50 + radius * Math.cos(angleRad);
                     const y = 50 + radius * Math.sin(angleRad);
 
@@ -642,7 +650,7 @@
                     div.style.left = `${x}%`;
                     div.style.top = `${y}%`;
                     div.style.borderColor = p.colorData.color;
-                    div.style.transform = `translate(-50%, -50%)`; // Center the div on the point
+                    div.style.transform = `translate(-50%, -50%)`;
 
                     div.innerHTML = `
                         <div style="font-size:24px;">👤</div>
@@ -675,12 +683,15 @@
                     el.querySelector('.avatar-cards').innerHTML = `🎴 ${p.hand.length}`;
                 });
 
-                // Direction Ring Animation
+                // Direction
                 const ring = document.getElementById('direction-ring');
+                const text = document.getElementById('direction-text');
                 if (this.direction === 1) {
                     ring.style.animation = "spin 10s linear infinite";
+                    text.innerText = "↻ 順時針";
                 } else {
                     ring.style.animation = "spinCCW 10s linear infinite";
+                    text.innerText = "↺ 逆時針";
                 }
             },
 
@@ -690,7 +701,6 @@
 
                 if (!player.isHuman) {
                     this.isProcessing = true;
-                    // AI delay
                     setTimeout(() => this.aiPlay(player), 1200);
                 } else {
                     this.isProcessing = false;
@@ -707,7 +717,6 @@
                 if (card.effect === EFFECTS.REMOVE) return tempScore;
                 if (card.effect === EFFECTS.REVERSE) return tempScore;
                 
-                // +13 handled by value=13
                 tempScore += card.value;
                 return tempScore;
             },
@@ -728,13 +737,6 @@
             },
 
             aiPlay: function(player) {
-                // AI Goal: Make score go towards 99 to harm next player.
-                // Priority:
-                // 1. Play Positives (+1 to +9 or +13) IF it doesn't bust.
-                // 2. If score is low, use Set 99 if safe.
-                // 3. Play Effects / Negatives if Positives would bust.
-                // 4. Bust if no choice.
-
                 let validMoves = [];
                 let bustMoves = [];
 
@@ -749,17 +751,10 @@
 
                 if (validMoves.length > 0) {
                     // Sort valid moves to find best aggressive move
-                    // We want Highest Score possible to pressure next player
                     validMoves.sort((a, b) => b.score - a.score);
-                    
-                    // Simple logic: Pick the move that results in highest score (closest to 99)
-                    // But if we have special effects like 'Remove Card', AI might want to use that to mess up player.
-                    // For now, adhere to "Try to get score to 99" -> Maximize score.
-                    
                     const bestMove = validMoves[0];
                     this.executeMove(player, bestMove.index, bestMove.score, false);
                 } else {
-                    // Must bust
                     this.executeMove(player, bustMoves[0].index, bustMoves[0].score, true);
                 }
             },
@@ -779,8 +774,7 @@
                 if (card.effect === EFFECTS.REVERSE) {
                     this.direction *= -1;
                     logMsg += " (迴轉)";
-                    // Recalculate next player after reverse
-                    nextPlayerIndex = this.getNextPlayerIndex();
+                    nextPlayerIndex = this.getNextPlayerIndex(); // Recalculate
                 } else if (card.effect === EFFECTS.SKIP) {
                     logMsg += " (跳過)";
                 } else if (card.effect === EFFECTS.REMOVE) {
@@ -798,14 +792,12 @@
                 }
 
                 if (isBust) {
-                    // Show bust card then end round
                     this.showToast(`${player.name} 數字 ${newScore} 爆了!`);
                     setTimeout(() => this.handleRoundLoss(player, newScore), 1000);
                 } else {
                     this.currentScore = newScore;
                     document.getElementById('current-score').innerText = this.currentScore;
                     
-                    // Color tension
                     const scoreEl = document.getElementById('current-score');
                     if(this.currentScore >= 90) scoreEl.style.color = "#FF5252";
                     else if(this.currentScore >= 50) scoreEl.style.color = "#FFEB3B";
@@ -813,9 +805,6 @@
 
                     this.showToast(logMsg);
                     
-                    // Draw card for current player (unless deck empty rules, but usually draw)
-                    // NOTE: Rule says "Remove Card" won't replenish victim's hand.
-                    // But current player played a card, should they draw? Standard Uno/99 rules: Yes, maintain hand size.
                     this.drawCard(player);
 
                     this.lastPlayerIndex = this.currentPlayerIndex;
@@ -856,7 +845,6 @@
                 const t = document.getElementById('toast-log');
                 t.innerText = msg;
                 t.classList.remove('hidden');
-                // Optional: Fade out effect
             },
 
             updateUI: function() {
@@ -871,7 +859,6 @@
                 
                 const activePlayer = this.players[this.currentPlayerIndex];
                 
-                // Show cards if it's a Human's turn
                 if (activePlayer.isHuman) {
                     activePlayer.hand.forEach((card, idx) => {
                         const cardDiv = document.createElement('div');
@@ -896,12 +883,10 @@
                 const penalty = finalScore * multiplier;
 
                 let winner = null;
-                // If lastPlayerIndex exists, they caused the loss or pushed the score
                 if (this.lastPlayerIndex !== null) {
                     winner = this.players[this.lastPlayerIndex];
                 }
 
-                // Update Money
                 loser.money -= penalty;
                 let winnerText = "無人";
                 if (winner) {
